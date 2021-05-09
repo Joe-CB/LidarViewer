@@ -4,6 +4,14 @@ import os
 import matplotlib.pyplot as plt
 
 
+def generate_altitude():
+    alt = []
+    alt.extend(-0.25 + 0.03 * np.arange(0, 467, 1) + 0.015)
+    alt = np.array(alt)
+    alt = np.around(alt, decimals=2)
+    alt = alt[::-1]
+    return alt
+
 
 class Profile:
     '''

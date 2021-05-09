@@ -31,7 +31,13 @@ import read_write
 
 
 class SlimImage:
-    def __init__(self, img=None, valid_range=(13, 18), draw_column=800):
+    def __init__(
+            self,
+            img=None,
+            valid_range=(13, 18),
+            draw_column=800,
+            *,
+            alt=None):
         '''
         显示一个细长的图片，由于太长每次只能显示一部分。
         :param img:要显示的图像       [row, column, channel]
@@ -46,6 +52,7 @@ class SlimImage:
         self.draw_column = draw_column
         self.position = 0
         self.valid_range = valid_range
+        self.alt = alt
 
     def Former(self):
         self.position -= self.draw_column
@@ -68,17 +75,23 @@ class SlimImage:
         if self.position > self.img.shape[1] - self.draw_column:
             self.position = self.img.shape[1] - self.draw_column
 
-
     def getValidRange(self):
         return self.valid_range
+
+    def getAltitude(self):
+        return self.alt
 
 class MplCanvas(FigureCanvasQTAgg):
     '''
     讲Matplotlib封装到QT的类
     '''
     def __init__(self, parent=None, width=5, height=4, dpi=100):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111)
+        fig, ax = plt.subplots(figsize=(width, height), dpi=dpi)
+
+        # fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = ax
+        self.fig = fig
+        # self.axes = fig.add_subplot(111)
         super(MplCanvas, self).__init__(fig)
 
 
@@ -171,6 +184,7 @@ class MainWindow(QtWidgets.QMainWindow):
         '''
         img = self.img_manager.getNow()
         valid_range = self.img_manager.getValidRange()
+        altitude = self.img_manager.getAltitude()
         # Get the images on an axis
         im = self.sc.axes.images
         # Assume colorbar was plotted last one plotted last
@@ -178,11 +192,14 @@ class MainWindow(QtWidgets.QMainWindow):
             cb = im[-1].colorbar
             # Do any actions on the colorbar object (e.g. remove it)
             cb.remove()
-
         self.sc.axes.cla()
 
         pos = self.sc.axes.imshow(img, cmap='jet', vmin=valid_range[0], vmax=valid_range[1], interpolation='nearest')
         plt.colorbar(pos, ax=self.sc.axes)
+        if altitude is not None:
+            y_label_pos = np.arange(0, altitude.shape[0], 20).astype(int)
+            self.sc.axes.set_yticks(y_label_pos)
+            self.sc.axes.set_yticklabels(altitude[y_label_pos])
         self.sc.draw()
 
     def openNRB(self):
@@ -196,8 +213,12 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         else:
             self.config_cache.addConfig('NRB_OPEN_DIR', filename)
-            img = read_write.AtlasReader.readNRB(filename)
-            self.img_manager = SlimImage(img.T, valid_range=(13, 18))
+
+            open_result = read_write.AtlasReader.readNRB(filename)
+            img = open_result['data']
+            altitude = open_result['Altitude']
+
+            self.img_manager = SlimImage(img.T, valid_range=(13, 18), alt=altitude)
             self.drawImg()
             return
 
@@ -212,8 +233,12 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         else:
             self.config_cache.addConfig('CAB_OPEN_DIR', filename)
-            img = read_write.AtlasReader.readCAB(filename)
-            self.img_manager = SlimImage(img.T, valid_range=(-6, -1))
+
+            open_result = read_write.AtlasReader.readCAB(filename)
+            img = open_result['data']
+            altitude = open_result['Altitude']
+
+            self.img_manager = SlimImage(img.T, valid_range=(-6, -1), alt=altitude)
             self.drawImg()
             return
 
@@ -228,15 +253,12 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         else:
             self.config_cache.addConfig('CAL_L1_OPEN_DIR', filename)
-            img = read_write.CaliopReader.read_TAB_532(filename)
 
-            # import matplotlib.pyplot as plt
-            # plt.figure()
-            # plt.hist(img, bins=40)
-            # plt.show()
+            open_result = read_write.CaliopReader.read_TAB_532(filename)
+            img = open_result['data']
+            altitude = open_result['Altitude']
 
-
-            self.img_manager = SlimImage(img.T, valid_range=(-6, -1))
+            self.img_manager = SlimImage(img.T, valid_range=(-6, -1), alt=altitude)
             self.drawImg()
             return
     

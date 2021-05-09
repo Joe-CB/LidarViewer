@@ -17,6 +17,7 @@ class AtlasReader(Reader):
 
     @staticmethod
     def readNRB(filename):
+        result = {'data': None, 'Altitude': None}
         if filename.find('ATL04') != -1:
             file = atl04.ATL04(filename)
             all_profile = []
@@ -27,11 +28,13 @@ class AtlasReader(Reader):
                 _nrb_profile = np.log10(_nrb_profile)
                 _nrb_profile[_nrb_profile > 33] = np.nan
                 all_profile.extend(_nrb_profile)
-            return np.array(all_profile)
-        return None
+            result['data'] = np.array(all_profile)
+            result['Altitude'] = atl04.generate_altitude()
+        return result
 
     @staticmethod
     def readCAB(filename):
+        result = {'data': None, 'Altitude': None}
         # ATL09?
         all_profile = []
         file = atl09.ATL09(filename)
@@ -41,9 +44,10 @@ class AtlasReader(Reader):
             cab = np.log10(cab)
             cab[cab > 33] = np.nan
             all_profile.extend(cab)
-        return np.array(all_profile)
+            result['data'] = np.array(all_profile)
+            result['Altitude'] = atl09.generate_altitude()
 
-        return None
+        return result
 
 class CaliopReader(Reader):
     def __init__(self):
@@ -51,7 +55,11 @@ class CaliopReader(Reader):
 
     @staticmethod
     def read_TAB_532(filename: str):
+        result = {'data': None, 'Altitude': None}
         total_attenual_backscatter = caliop_l1.CaliopL1.getTAB(filename)
         total_attenual_backscatter = np.log10(total_attenual_backscatter)
+        alt = caliop_l1.generate_altitude()
         # cab[cab > 33] = np.nan
-        return total_attenual_backscatter
+        result['data'] = total_attenual_backscatter
+        result['Altitude'] = alt
+        return result

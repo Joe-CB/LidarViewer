@@ -13,87 +13,19 @@ import cv2
 from pyhdf.SD import SD, SDC
 from pyhdf.error import *
 
-def getTimeByFilename(vfm_filename):
-    vfm_filepath, vfm_filename = os.path.split(vfm_filename)
-    vfm_shotname, vfm_extension = os.path.splitext(vfm_filename)
-    vfm_shotname = vfm_shotname.split('.')
-    data = vfm_shotname[1][:10]
-    data = data.split('-')
-    return [int(idx) for idx in data]
-
-
-def is_vfm(vfm_filename):
-    # 打开文件
-    filename, type = os.path.splitext(vfm_filename)
-    if type != '.hdf':
-        return False
-    return True
-
-
-def get_utc_time(hdf_url):
-    begin = 0
-    end = 0
-
-    try:
-        vfm_file = SD(hdf_url)
-    except HDF4Error:
-        return -1, -1
-    else:
-        sds_utc_time = vfm_file.select('Profile_UTC_Time')
-        return sds_utc_time[0].min(), sds_utc_time[-1].max()
-
-
-def get_sci_time(hdf_url):
-    begin = 0
-    end = 0
-
-    try:
-        vfm_file = SD(hdf_url)
-    except HDF4Error:
-        return -1, -1
-    else:
-        sds_sci_time = vfm_file.select('Profile_Time')
-        return sds_sci_time[0].min(), sds_sci_time[-1].max()
-
-def get_sci_array(hdf_filename):
-    try:
-        vfm_file = SD(hdf_filename)
-    except HDF4Error:
-        return -1, -1
-    else:
-        sds_sci_time = vfm_file.select('Profile_Time')
-        return sds_sci_time.get()
-
-def get_vfm_coor(vfm_filename):
-    # 1. p_fileAddress：vfm数据的文件地址
-    # 2. p_range_box 经纬度范围
-    try:
-        dt = SD(vfm_filename)
-        # SDS Reading(经纬度，分类数据)
-        latSds = dt.select('ssLatitude')
-        lonSds = dt.select('ssLongitude')
-        latitude = latSds.get()
-        longitude = lonSds.get()
-        return longitude, latitude
-    except HDF4Error:
-        print('VFM READ ERROR:')
-        print(vfm_filename)
-        print("Unexpected error:", sys.exc_info()[0])
-        return None, None
-
 
 def generate_altitude():
-    first_range = np.arange(0, 290) * 0.03 - 0.5 + 0.015
-    second_range = np.arange(0, 200) * 0.06 + 8.2 + 0.03
-    third_range = np.arange(0, 55) * 0.18 + 20.2 + 0.09
-    alt = np.concatenate((
-        first_range,
-        second_range,
-        third_range),
-        axis=0
-    )
-    alt = np.flipud(alt)
+    alt = []
+    alt.extend(-2 + 0.3 * np.arange(0, 583-578, 1) + 0.15)
+    alt.extend(-0.5 + 0.03 * np.arange(0, 578-288, 1) + 0.015)
+    alt.extend(8.3 + 0.06 * np.arange(0, 288-88, 1) + 0.03)
+    alt.extend(20.2 + 0.18 * np.arange(0, 88-33, 1) + 0.09)
+    alt.extend(30.1 + 0.3 * np.arange(0, 33, 1) + 0.15)
+    alt = np.array(alt)
+    alt = np.around(alt, decimals=2)
+    alt = alt[::-1]
     return alt
+
 
 class CaliopL1:
     '''
@@ -118,7 +50,15 @@ class CaliopL1:
     def getTAB(filename):
         return CaliopL1.getByName(filename, 'Total_Attenuated_Backscatter_532')
 
-
+    @staticmethod
+    def getKeyName(filename):
+        '''
+        key name 是一个字符串，使用该字符串可以区分CALIOP不同产品是否为同一数据
+        :param filename:
+        :return:
+        '''
+        path, filename = os.path.split(filename)
+        return filename[26:47]
 
 if __name__ == "__main__":
     pass
